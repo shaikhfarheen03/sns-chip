@@ -44,6 +44,8 @@ mkdir -p "$annovar_dir"
 # clean up sample name for paired samples
 sample_clean=${sample}
 
+## Dec2022-FS: Updated the sample_clean variable
+
 annovar_input="${annovar_dir}/${sample_clean}.avinput"
 annovar_out_prefix="${annovar_dir}/${sample_clean}"
 annovar_out_fixed="${annovar_out_prefix}.annot.txt"
@@ -130,6 +132,8 @@ annovar_multianno="${annovar_out_prefix}.${genome_build}_multianno.txt"
 # protocol, operation, and argument must have the same number of fields/commas
 # annovar_protocol, annovar_operation - table_annovar parameters
 # annovar_cols_grep - column names to grep for the final fixed table
+
+# Dec2022-FS: Modified the annotation databases by changing the annovar_protocol for hg38. Terra annotates using refgene and cosmic70. Updated annovar_operation to g and f. Updated the splicing threshold to 2. Updated the number of commas after splicing threshold. Updated the annovar_cols_grep command. 
 if [[ "$genome_build" == "hg19" ]] ; then
 	annovar_protocol="refGene,avsnp150,gnomad211_exome,kaviar_20150923,cosmic88,cosmic90,intervar_20180118,cadd13gt10,fathmm"
 	annovar_operation="g,f,f,f,f,f,f,f,f"
@@ -254,7 +258,10 @@ echo " * table_annovar out prefix : $annovar_out_prefix "
 echo " * table_annovar out : $annovar_multianno "
 echo
 
+
 # annotate with annovar (outputs $annovar_multianno)
+
+## Dec2022 FS Using vcf_file as input instead of annovar_input to retain the PASS annotation for variants. Igor's originnal pipeline filters and annotates only the PASS variant calls.
 table_cmd="
 perl ${annovar_path}/table_annovar.pl $vcf_file ${annovar_db_path}/${genome_build}/ \
 --outfile $annovar_out_prefix \
@@ -285,12 +292,16 @@ fi
 
 #########################
 
-# unload all loaded modulefiles
+# Dec2022 FS - unload all loaded modulefiles
+# The R script works with this specific version of R. 
+# Adding R script path
+
+
 module purge
 module add default-environment
 
 module add r/4.2.2
-Rscript --vanilla /gpfs/data/ischemialab/workspace/farheen/terra_pipeline_dev_FS/whitelist_filter_files/whitelist_filter_rscript.R $sample $proj_dir
+Rscript --vanilla ${proj_dir}/whitelist_filter_files/whitelist_filter_rscript.R $sample $proj_dir
 
 # prepare ANNOVAR multianno table for merging with variant info from VCF
 
