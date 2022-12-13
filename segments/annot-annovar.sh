@@ -42,7 +42,7 @@ annovar_dir="${proj_dir}/${segment_name}"
 mkdir -p "$annovar_dir"
 
 # clean up sample name for paired samples
-sample_clean=${sample//:/-}
+sample_clean=${sample}
 
 annovar_input="${annovar_dir}/${sample_clean}.avinput"
 annovar_out_prefix="${annovar_dir}/${sample_clean}"
@@ -136,10 +136,10 @@ if [[ "$genome_build" == "hg19" ]] ; then
 	annovar_argument="'--splicing_threshold 10',,,,,,,,"
 	annovar_cols_grep="^Ref|^Alt|refGene|avsnp|AF_popmax|cancer_AF|controls_AF|Kaviar_AF|cosmic|InterVar|CADD13_PHRED|FATHMM"
 elif [[ "$genome_build" == "hg38" ]] ; then
-	annovar_protocol="refGene,avsnp150,gnomad_exome,gnomad_genome,kaviar_20150923,cosmic94,intervar_20180118,clinvar_20210501,revel,dbnsfp33a"
-	annovar_operation="g,f,f,f,f,f,f,f,f,f"
-	annovar_argument="'--splicing_threshold 10',,,,,,,,,"
-	annovar_cols_grep="^Ref|^Alt|refGene|avsnp|gnomAD_exome_ALL|gnomAD_genome_ALL|Kaviar_AF|cosmic|InterVar|CLNSIG|REVEL|CADD|fathmm"
+	annovar_protocol="refGene,cosmic94"
+	annovar_operation="g,f"
+	annovar_argument="'--splicing_threshold 2',"
+	annovar_cols_grep="^Ref|^Alt|refGene|cosmic"
 elif [[ "$genome_build" == "mm10" ]] ; then
 	annovar_protocol="refGene,snp142,snp142Common"
 	annovar_operation="g,f,f"
@@ -256,13 +256,14 @@ echo
 
 # annotate with annovar (outputs $annovar_multianno)
 table_cmd="
-perl ${annovar_path}/table_annovar.pl $annovar_input ${annovar_db_path}/${genome_build}/ \
+perl ${annovar_path}/table_annovar.pl $vcf_file ${annovar_db_path}/${genome_build}/ \
 --outfile $annovar_out_prefix \
 --buildver $genome_build \
 --protocol $annovar_protocol \
 --operation $annovar_operation \
 --argument $annovar_argument \
 --nastring . \
+--vcfinput \
 --remove
 "
 echo -e "\n CMD: $table_cmd \n"
@@ -284,35 +285,41 @@ fi
 
 #########################
 
+# unload all loaded modulefiles
+module purge
+module add default-environment
+
+module add r/4.2.2
+Rscript --vanilla /gpfs/data/ischemialab/workspace/farheen/terra_pipeline_dev_FS/whitelist_filter_files/whitelist_filter_rscript.R $sample $proj_dir
 
 # prepare ANNOVAR multianno table for merging with variant info from VCF
 
 # get column names (add extra column that will become mutation ID)
-unfiltered_header=$(head -1 "$annovar_multianno" | awk -F $'\t' 'BEGIN {OFS=FS} {print "X", $0}')
+#unfiltered_header=$(head -1 "$annovar_multianno" | awk -F $'\t' 'BEGIN {OFS=FS} {print "X", $0}')
 # convert column names to comma-separated numbers
-annovar_keep_cols=$(echo "$unfiltered_header" \
-| tr '\t' '\n' \
-| grep -En "$annovar_cols_grep" \
-| cut -d ':' -f 1 \
-| tr '\n' ',')
+#annovar_keep_cols=$(echo "$unfiltered_header" \
+#| tr '\t' '\n' \
+#| grep -En "$annovar_cols_grep" \
+#| cut -d ':' -f 1 \
+#| tr '\n' ',')
 # add column 1 (mutation ID) and remove trailing comma
-annovar_keep_cols=$(echo "1,$annovar_keep_cols" | rev | cut -c 2- | rev)
+#annovar_keep_cols=$(echo "1,$annovar_keep_cols" | rev | cut -c 2- | rev)
 
 # add mutation ID, filter columns, and sort multianno table
 # backslashes in awk to prevent variable expansion and retain quotes
-bash_cmd="
-cat $annovar_multianno \
-| awk -F $'\t' 'BEGIN {OFS=FS} {print \$1 \":\" \$2 \":\" \$4 \":\" \$5, \$0}' \
-| cut -f $annovar_keep_cols \
-| sed 's/Chr:Start:Ref:Alt/#MUT/g' \
-| sed 's/avsnp1/dbSNP_1/g' \
-| LC_ALL=C sort -k1,1 \
-> $annovar_out_fixed
-"
-echo -e "\n CMD: $bash_cmd \n"
-eval "$bash_cmd"
+#bash_cmd="
+#cat $annovar_multianno \
+#| awk -F $'\t' 'BEGIN {OFS=FS} {print \$1 \":\" \$2 \":\" \$4 \":\" \$5, \$0}' \
+#| cut -f $annovar_keep_cols \
+#| sed 's/Chr:Start:Ref:Alt/#MUT/g' \
+#| sed 's/avsnp1/dbSNP_1/g' \
+#| LC_ALL=C sort -k1,1 \
+#> $annovar_out_fixed
+#"
+#echo -e "\n CMD: $bash_cmd \n"
+#eval "$bash_cmd"
 
-sleep 5
+#sleep 5
 
 
 #########################
@@ -320,10 +327,10 @@ sleep 5
 
 # check that table_annovar completed
 
-if [ ! -s "$annovar_out_fixed" ] ; then
-	echo -e "\n $script_name ERROR: $annovar_out_fixed IS EMPTY \n" >&2
-	exit 1
-fi
+#if [ ! -s "$annovar_out_fixed" ] ; then
+#	echo -e "\n $script_name ERROR: $annovar_out_fixed IS EMPTY \n" >&2
+#	exit 1
+#fi
 
 
 #########################
@@ -331,16 +338,16 @@ fi
 
 # merge variant info from VCF with annotations from ANNOVAR
 
-join_cmd="
-LC_ALL=C join -a1 -t $'\t' \
-<(LC_ALL=C sort -k1,1 $vcf_table) \
-<(LC_ALL=C sort -k1,1 $annovar_out_fixed) \
-> $annovar_combined
-"
-echo -e "\n CMD: $join_cmd \n"
-eval "$join_cmd"
+#join_cmd="
+#LC_ALL=C join -a1 -t $'\t' \
+#<(LC_ALL=C sort -k1,1 $vcf_table) \
+#<(LC_ALL=C sort -k1,1 $annovar_out_fixed) \
+#> $annovar_combined
+#"
+#echo -e "\n CMD: $join_cmd \n"
+#eval "$join_cmd"
 
-sleep 5
+#sleep 5
 
 
 #########################
@@ -348,10 +355,10 @@ sleep 5
 
 # check that join completed
 
-if [ ! -s "$annovar_combined" ] ; then
-	echo -e "\n $script_name ERROR: $annovar_combined IS EMPTY \n" >&2
-	exit 1
-fi
+#if [ ! -s "$annovar_combined" ] ; then
+#	echo -e "\n $script_name ERROR: $annovar_combined IS EMPTY \n" >&2
+#	exit 1
+#fi
 
 
 #########################
@@ -359,8 +366,8 @@ fi
 
 # clean up
 
-rm -fv "$annovar_input"
-rm -fv "$annovar_out_fixed"
+#rm -fv "$annovar_input"
+#rm -fv "$annovar_out_fixed"
 
 
 #########################
@@ -368,23 +375,23 @@ rm -fv "$annovar_out_fixed"
 
 # summary
 
-total_muts=$(cat "$annovar_combined" | grep -v 'refGene' | wc -l)
-echo "total muts: $total_muts"
+#total_muts=$(cat "$annovar_combined" | grep -v 'refGene' | wc -l)
+#echo "total muts: $total_muts"
 
-coding_muts=$(cat "$annovar_combined" | grep -v 'refGene' | grep 'exon' | wc -l)
-echo "coding muts: $coding_muts"
+#coding_muts=$(cat "$annovar_combined" | grep -v 'refGene' | grep 'exon' | wc -l)
+#echo "coding muts: $coding_muts"
 
-nonsyn_muts=$(cat "$annovar_combined" | grep -v 'refGene' | grep -E 'nonsynonymous|stopgain|stoploss|frameshift' | wc -l)
-echo "nonsynonymous muts: $coding_muts"
+#nonsyn_muts=$(cat "$annovar_combined" | grep -v 'refGene' | grep -E 'nonsynonymous|stopgain|stoploss|frameshift' | wc -l)
+#echo "nonsynonymous muts: $coding_muts"
 
 # summarize log file
-echo "${summary_header}" > "$summary_csv"
-echo "${sample_clean},${total_muts},${coding_muts},${nonsyn_muts}" >> "$summary_csv"
+#echo "${summary_header}" > "$summary_csv"
+#echo "${sample_clean},${total_muts},${coding_muts},${nonsyn_muts}" >> "$summary_csv"
 
-sleep 5
+#sleep 5
 
 # combine all sample summaries
-cat ${summary_dir}/*.${segment_name}.csv | LC_ALL=C sort -t ',' -k1,1 | uniq > "${proj_dir}/summary.${segment_name}.csv"
+#cat ${summary_dir}/*.${segment_name}.csv | LC_ALL=C sort -t ',' -k1,1 | uniq > "${proj_dir}/summary.${segment_name}.csv"
 
 
 #########################
@@ -393,38 +400,38 @@ cat ${summary_dir}/*.${segment_name}.csv | LC_ALL=C sort -t ',' -k1,1 | uniq > "
 # combine annotations for all samples
 
 # all mutations
-combine_all_cmd="
-cat ${annovar_dir}/*.combined.txt \
-| LC_ALL=C sort -k1,1 -k2,2 \
-| uniq \
-> ${annovar_dir}.all.txt
-"
-echo -e "\n CMD: $combine_all_cmd \n"
-eval "$combine_all_cmd"
+#combine_all_cmd="
+#cat ${annovar_dir}/*.combined.txt \
+#| LC_ALL=C sort -k1,1 -k2,2 \
+#| uniq \
+#> ${annovar_dir}.all.txt
+#"
+#echo -e "\n CMD: $combine_all_cmd \n"
+#eval "$combine_all_cmd"
 
-sleep 1
+#sleep 1
 
 # coding mutations
-combine_coding_cmd="
-cat ${annovar_dir}.all.txt \
-| grep -E 'refGene|exon|splicing' \
-> ${annovar_dir}.coding.txt
-"
-echo -e "\n CMD: $combine_coding_cmd \n"
-eval "$combine_coding_cmd"
+#combine_coding_cmd="
+#cat ${annovar_dir}.all.txt \
+#| grep -E 'refGene|exon|splicing' \
+#> ${annovar_dir}.coding.txt
+#"
+#echo -e "\n CMD: $combine_coding_cmd \n"
+#eval "$combine_coding_cmd"
 
-sleep 1
+#sleep 1
 
 # consequence mutations
-combine_nonsyn_cmd="
-cat ${annovar_dir}.all.txt \
-| grep -E 'refGene|splicing|nonsynonymous|stopgain|stoploss|frameshift' \
-> ${annovar_dir}.nonsyn.txt
-"
-echo -e "\n CMD: $combine_nonsyn_cmd \n"
-eval "$combine_nonsyn_cmd"
+#combine_nonsyn_cmd="
+#cat ${annovar_dir}.all.txt \
+#| grep -E 'refGene|splicing|nonsynonymous|stopgain|stoploss|frameshift' \
+#> ${annovar_dir}.nonsyn.txt
+#"
+#echo -e "\n CMD: $combine_nonsyn_cmd \n"
+#eval "$combine_nonsyn_cmd"
 
-sleep 1
+#sleep 1
 
 
 #########################
