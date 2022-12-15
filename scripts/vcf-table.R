@@ -105,7 +105,7 @@ parse_lofreq = function(vcfr_obj, sample_name) {
 }
 
 # Mutect 2.1 (GATK 4.0) and Mutect 2.2 (GATK 4.1)
-parse_mutect2 = function(vcfr_obj, sample_T, sample_N) {
+parse_mutect2 = function(vcfr_obj, sample_T) {
 
   # confirm mutect version (header changed from "Mutect Version" to "MutectVersion" in GATK 4.0.9.0)
   if (!any(str_detect(vcfr_obj@meta, "##MutectVersion=2."))) {
@@ -114,9 +114,6 @@ parse_mutect2 = function(vcfr_obj, sample_T, sample_N) {
 
   # confirm sample names
   if (!any(str_detect(vcfr_obj@meta, glue("##tumor_sample={sample_T}")))) {
-    stop("sample mismatch")
-  }
-  if (!any(str_detect(vcfr_obj@meta, glue("##normal_sample={sample_N}")))) {
     stop("sample mismatch")
   }
 
@@ -154,21 +151,21 @@ parse_mutect2 = function(vcfr_obj, sample_T, sample_N) {
     )
 
   # extract samples T and N to put side by side ("wide" format)
-  snvs_n_tbl =
-    muts_tbl %>%
-    filter(Indiv == sample_N) %>%
-    rename(N_DEPTH = T_DEPTH, N_FREQ = T_FREQ) %>%
-    select(mut_id, N_DEPTH, N_FREQ)
-  muts_tbl =
-    muts_tbl %>%
-    filter(Indiv == sample_T) %>%
-    inner_join(snvs_n_tbl, by = "mut_id")
+#  snvs_n_tbl =
+#    muts_tbl %>%
+#    filter(Indiv == sample_N) %>%
+ #   rename(N_DEPTH = T_DEPTH, N_FREQ = T_FREQ) %>%
+ #   select(mut_id, N_DEPTH, N_FREQ)
+#  muts_tbl =
+#    muts_tbl %>%
+ #  filter(Indiv == sample_T) %>%
+  #  inner_join(snvs_n_tbl, by = "mut_id")
 
   # adjust indels to be in ANNOVAR format
-  muts_tbl = muts_tbl %>% adjust_indels()
+#  muts_tbl = muts_tbl %>% adjust_indels()
 
   # manual filtering
-  muts_tbl %>% filter(T_DEPTH >= 10 & N_DEPTH >= 10 & alt_counts >= 5 & T_FREQ > 0.03 & T_FREQ > (N_FREQ * 5))
+#  muts_tbl %>% filter(T_DEPTH >= 10 & N_DEPTH >= 10 & alt_counts >= 5 & T_FREQ > 0.03 & T_FREQ > (N_FREQ * 5))
 
 }
 
@@ -283,10 +280,9 @@ adjust_indels = function(x) {
 }
 
 # split sample name for somatic variants
-if (str_detect(sample_name, ":")) {
-  sample_T = str_split_fixed(sample_name, ":", 2)[1]
-  sample_N = str_split_fixed(sample_name, ":", 2)[2]
-}
+
+  sample_T = sample_name
+
 
 # import VCF as a vcfR object
 muts_vcfr = read.vcfR(in_vcf, verbose = FALSE)
@@ -314,7 +310,7 @@ if (any(str_detect(muts_vcfr@meta, "##GATKCommandLine.HaplotypeCaller"))) {
   # Mutect 2.1 (GATK 4.0) or Mutect 2.2 (GATK 4.1)
   message("parsing Mutect 2.X VCF")
   caller_type = "somatic"
-  vcf_tbl = parse_mutect2(vcfr_obj = muts_vcfr, sample_T = sample_T, sample_N = sample_N)
+  vcf_tbl = parse_mutect2(vcfr_obj = muts_vcfr, sample_T = sample_T)
 
 } else if (any(str_detect(muts_vcfr@meta, "##source=strelka"))) {
 
@@ -355,8 +351,8 @@ if (caller_type == "germline") {
   out_cols = c("#MUT", "SAMPLE", "CHR", "POS", "QUAL", "DEPTH", "FREQ")
 }
 if (caller_type == "somatic") {
-  vcf_tbl = vcf_tbl %>% mutate(SAMPLE_T = sample_T, SAMPLE_N = sample_N)
-  out_cols = c("#MUT", "SAMPLE_T", "SAMPLE_N", "CHR", "POS", "QUAL", "T_DEPTH", "T_FREQ", "N_DEPTH", "N_FREQ")
+  vcf_tbl = vcf_tbl %>% mutate(SAMPLE_T = sample_T)
+  out_cols = c("#MUT", "SAMPLE_T", "CHR", "POS", "QUAL", "T_DEPTH", "T_FREQ")
 }
 
 # keep only relevant columns
