@@ -17,3 +17,42 @@ Somatic variant calling for single nucleotide variants (SNVs) and indels is perf
 
 Variants are annotated (using Annovar and filtered using a Rscript) as having CHIP if the output VCF contains one or more of a pre-specified list of putative CHIP variants (see: Bick et al, 2020)
 
+##Usage
+Inorder to run the CHIP somatic mutation pipeline, process the fastq files using WES route on SNS. 
+
+Route: wes
+Alignment and variant detection for whole genome/exome/targeted sequencing data.
+
+Segments:
+
+Trim adapters and low quality bases (Trimmomatic).
+Align to the reference genome (BWA-MEM).
+Remove duplicate reads (Sambamba).
+Realign and recalibrate (GATK).
+Determine fragment size distribution.
+Determine capture efficiency and depth of coverage (GATK).
+Call point mutations and small insertions/deletions (GATK HaplotypeCaller and LoFreq).
+For somatic variant detection, follow with wes-pairs-snv.
+
+Usage
+Set up a new analysis (common across all routes). If running for the first time, check the detailed usage instructions for an explanation of every step.
+
+cd <project dir>
+git clone --depth 1 https://github.com/igordot/sns
+sns/generate-settings <genome>
+sns/gather-fastqs <fastq dir>
+Add a BED file defining the genomic regions targeted for capture to the project directory. The targeted regions (or primary targets) are the regions your capture kit attempts to cover, usually exons of genes of interest.
+
+Run wes route.
+
+sns/run wes
+  
+  
+Once the samples have been processed, you can proceed with CHIP variant calling. 
+  - Rename the sns folder in the project directory to "sns-og" 
+  - Download the sns scripts from https://github.com/shaikhfarheen03/sns-chip using the following command git clone --depth 1 https://github.com/shaikhfarheen03/sns-chip
+  - Download the zip file to the project directory. This zip file contains gatk, pon, whitelist R script.
+  - Install R packages data.table and bioMart on the server in your local R directory. 
+  - Modify the samples.csv and remove the #normal header and NAs. Make sure you only have #tumor and tumor samples listed in the samplesheet.
+  - Run the script using the sns/run wes-pairs-snv command.
+  - Once complete the output will be generated in the Mutect2-annot folder. You'll find 4 csv files for each sample. 
