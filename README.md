@@ -1,4 +1,4 @@
-# Seq-N-Slide: sequencing data analysis pipelines
+# Seq-N-Slide: sequencing data analysis pipelines (CHIP variant calling with Panel of normals)
 
 [![DOI](https://zenodo.org/badge/66501450.svg)](https://zenodo.org/badge/latestdoi/66501450)
 
