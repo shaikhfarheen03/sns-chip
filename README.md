@@ -51,7 +51,7 @@ sns/run wes
 Once the samples have been processed, you can proceed with CHIP variant calling. 
   - Rename the sns folder in the project directory to "sns-og" 
   - Download the sns scripts from https://github.com/shaikhfarheen03/sns-chip using the following command git clone --depth 1 https://github.com/shaikhfarheen03/sns-chip
-  - Download the zip file to the project directory. This zip file contains pon and whitelist R script.
+  - Download the zip file (https://github.com/shaikhfarheen03/sns-chip/blob/main/CHIP_PON_whitelist_filter.zip) to the project directory. This zip file contains pon and whitelist R script.
   - Download the gatk version 4.1.6.0 to the project directory using this commnd wget https://github.com/broadinstitute/gatk/releases/download/4.1.6.0/gatk-4.1.6.0.zip
   - Install R packages data.table and bioMart on the server in your local R directory. 
   - Modify the samples.csv and remove the #normal header and NAs. Make sure you only have #tumor and tumor samples listed in the samplesheet.
