@@ -53,7 +53,9 @@ Once the samples have been processed, you can proceed with CHIP variant calling.
   - Download the sns scripts from https://github.com/shaikhfarheen03/sns-chip using the following command git clone --depth 1 https://github.com/shaikhfarheen03/sns-chip
   - Download the zip file (https://github.com/shaikhfarheen03/sns-chip/blob/main/CHIP_PON_whitelist_filter.zip) to the project directory. This zip file contains pon and whitelist R script.
   - Download the gatk version 4.1.6.0 to the project directory using this commnd wget https://github.com/broadinstitute/gatk/releases/download/4.1.6.0/gatk-4.1.6.0.zip
-  - Install R packages data.table and bioMart on the server in your local R directory. 
+  - Install R packages data.table (version1.14.6) and bioMart(2.54.0) on bigpurple in your local R directory. 
   - Modify the samples.csv and remove the #normal header and NAs. Make sure you only have #tumor and tumor samples listed in the samplesheet.
   - Run the script using the sns/run wes-pairs-snv command.
   - Once complete the output will be generated in the Mutect2-annot folder. You'll find 4 csv files for each sample. 
+  - Concatenate the wl output
+  - Filte variants using this artcle, https://ashpublications.org/blood/article-abstract/doi/10.1182/blood.2022018825/494152/A-practical-approach-to-curate-clonal?redirectedFrom=fulltext
